@@ -12,8 +12,8 @@ ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "change-me")
 TASK_TOKEN = os.environ.get("TASK_TOKEN", "change-me")
 DATABASE_PATH = os.environ.get("DATABASE_PATH", "./skynet.db")
 
-COMPANY_NAME = os.environ.get("COMPANY_NAME", "Gray Custom Homes")
-SENDER_NAME = os.environ.get("SENDER_NAME", "Wyatt")
+COMPANY_NAME = os.environ.get("COMPANY_NAME", "Wyatt & Gray Custom Homes")
+SENDER_NAME = os.environ.get("SENDER_NAME", "Joe")
 
 # Your personal phone in E.164 (e.g. +15125551234). Receives the morning preview
 # and can reply with commands like "skip 1", "send", "status".

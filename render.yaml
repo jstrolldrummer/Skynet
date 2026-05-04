@@ -18,9 +18,9 @@ services:
       - key: TASK_TOKEN
         sync: false
       - key: COMPANY_NAME
-        value: Gray Custom Homes
+        value: Wyatt & Gray Custom Homes
       - key: SENDER_NAME
-        value: Wyatt
+        value: Joe
       - key: OWNER_PHONE
         sync: false
       - key: DATABASE_PATH
