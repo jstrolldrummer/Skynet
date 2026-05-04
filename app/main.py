@@ -152,11 +152,30 @@ def admin_send_now(_user: str = Depends(require_admin)):
     return messaging.send_daily_followups()
 
 
+def _check_task_token(token: str) -> None:
+    if not secrets.compare_digest(token or "", config.TASK_TOKEN or ""):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
 @app.post("/tasks/send-followups")
 def cron_send_followups(x_task_token: str = Header(default="")):
-    if not secrets.compare_digest(x_task_token or "", config.TASK_TOKEN or ""):
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    """Immediate one-shot sweep — bypasses the preview/pending flow."""
+    _check_task_token(x_task_token)
     return messaging.send_daily_followups()
+
+
+@app.post("/tasks/preview-followups")
+def cron_preview_followups(x_task_token: str = Header(default="")):
+    """Build today's pending list and text the owner a preview."""
+    _check_task_token(x_task_token)
+    return messaging.prepare_preview()
+
+
+@app.post("/tasks/send-pending")
+def cron_send_pending(x_task_token: str = Header(default="")):
+    """Send everything currently pending (the 8am cron)."""
+    _check_task_token(x_task_token)
+    return messaging.send_pending()
 
 
 @app.post("/sms/incoming")
@@ -164,6 +183,26 @@ async def sms_incoming(request: Request):
     form = await request.form()
     from_number = form.get("From", "")
     body = form.get("Body", "")
+
+    if config.OWNER_PHONE and from_number == config.OWNER_PHONE:
+        reply = messaging.handle_owner_command(body)
+        with db.connect() as conn:
+            conn.execute(
+                "INSERT INTO messages (subcontractor_id, direction, body) VALUES (NULL, 'owner-in', ?)",
+                (body,),
+            )
+            if reply:
+                conn.execute(
+                    "INSERT INTO messages (subcontractor_id, direction, body) VALUES (NULL, 'owner-out', ?)",
+                    (reply,),
+                )
+        if reply:
+            twiml = (
+                '<?xml version="1.0" encoding="UTF-8"?>'
+                f"<Response><Message>{_xml_escape(reply)}</Message></Response>"
+            )
+            return Response(content=twiml, media_type="application/xml")
+
     with db.connect() as conn:
         sub = conn.execute(
             "SELECT id FROM subcontractors WHERE phone = ?", (from_number,)
@@ -175,3 +214,13 @@ async def sms_incoming(request: Request):
         )
     twiml = '<?xml version="1.0" encoding="UTF-8"?><Response/>'
     return Response(content=twiml, media_type="application/xml")
+
+
+def _xml_escape(s: str) -> str:
+    return (
+        s.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&apos;")
+    )

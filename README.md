@@ -11,10 +11,11 @@ Daily SMS follow-ups to subcontractors about their open items, with reply tracki
 ## What it does
 
 1. You add subcontractors, jobs, and open items in a small admin web UI.
-2. Once a day, a scheduled HTTP request triggers a sweep: every active sub with at least one open item gets a single text listing their items.
-3. Replies hit a Twilio webhook and get logged against the sub. You read replies in the same admin UI.
+2. **7:30am — preview.** The app texts *you* a numbered list of who's about to be contacted. You can reply `skip 1`, `skip 1,3`, or `skip 1-3` to drop anyone, `send` to fire immediately, or `status` to recheck what's queued.
+3. **8:00am — send.** Whatever is still pending goes out to subs. If you don't reply to the preview at all, everything sends as-is.
+4. Sub replies hit a Twilio webhook and get logged against the sub. You read replies in the admin UI.
 
-Sample outbound text:
+Sample outbound text to a sub:
 
 ```
 Morning Carlos — Wyatt with Gray Custom Homes. Your open items:
@@ -23,6 +24,16 @@ Morning Carlos — Wyatt with Gray Custom Homes. Your open items:
 3. 47 Pine Ln — confirm Tuesday start
 
 Reply with a quick status on each (e.g. "1 done, 2 by Friday"). Reply STOP to opt out.
+```
+
+Sample 7:30am preview text to you:
+
+```
+Skynet: 2 follow-ups queued for 8am.
+1. Carlos Garcia (3 items)
+2. Jim Smith (2 items)
+
+Reply "skip 1" or "skip 1,3" to drop, "send" to fire now, "status" to recheck.
 ```
 
 ---
@@ -37,6 +48,7 @@ pip install -r requirements.txt
 cp .env.example .env
 # Fill in TWILIO_* once you have an account
 # Set ADMIN_PASSWORD and TASK_TOKEN to anything random
+# Set OWNER_PHONE to your personal cell in E.164 (e.g. +15125551234)
 
 uvicorn app.main:app --reload
 ```
@@ -84,19 +96,28 @@ The `starter` plan in `render.yaml` is $7/mo and required for the persistent dis
 
 ## Setting up the daily schedule
 
-The app exposes `POST /tasks/send-followups` protected by `TASK_TOKEN`. Hit it once a day from any scheduler.
+You need **two** cron jobs: one at 7:30am to send the preview, one at 8:00am to fire whatever's still pending. Both are protected by `TASK_TOKEN`.
 
 **Easiest: cron-job.org (free)**
 
 1. Go to <https://cron-job.org/en/signup/> and create an account.
-2. Create a new cronjob:
-   - URL: `https://skynet-xxxx.onrender.com/tasks/send-followups`
+2. Create cronjob #1 — preview:
+   - Title: `Skynet preview`
+   - URL: `https://skynet-xxxx.onrender.com/tasks/preview-followups`
    - Method: `POST`
-   - Schedule: every day at the time you want (e.g. 8:00 AM, your timezone)
-   - Headers: add `X-Task-Token: <your TASK_TOKEN value>`
-3. Save and enable.
+   - Schedule: every day at **7:30 AM** in your timezone
+   - Headers: `X-Task-Token: <your TASK_TOKEN value>`
+3. Create cronjob #2 — send:
+   - Title: `Skynet send`
+   - URL: `https://skynet-xxxx.onrender.com/tasks/send-pending`
+   - Method: `POST`
+   - Schedule: every day at **8:00 AM** in your timezone
+   - Headers: `X-Task-Token: <your TASK_TOKEN value>`
+4. Save and enable both.
 
-**Alternative: Render Cron Job** — add a second service in `render.yaml` of type `cron` that hits the URL with `curl`. Same idea, slightly more involved.
+If you ever want to bypass the preview/skip flow and just fire immediately (useful for testing), `POST /tasks/send-followups` still works — it's the original one-shot sweep.
+
+**Alternative: Render Cron Job** — add `cron`-type services in `render.yaml` that hit the URLs with `curl`. Same idea, slightly more involved.
 
 ---
 

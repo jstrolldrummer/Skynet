@@ -36,6 +36,17 @@ CREATE TABLE IF NOT EXISTS messages (
   twilio_sid TEXT,
   sent_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS pending_sends (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  subcontractor_id INTEGER NOT NULL REFERENCES subcontractors(id) ON DELETE CASCADE,
+  body TEXT NOT NULL,
+  sequence_number INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  sent_at TEXT,
+  twilio_sid TEXT
+);
 """
 
 
