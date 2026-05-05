@@ -1,15 +1,16 @@
 import secrets
 from pathlib import Path
+from urllib.parse import quote_plus
 
-from fastapi import Depends, FastAPI, Form, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from twilio.request_validator import RequestValidator
 
-from . import config, db, messaging
+from . import config, db, messaging, sheet_import
 from .auth import require_admin
 
-app = FastAPI(title="Skynet — Subcontractor Follow-ups")
+app = FastAPI(title="Subtext — Subcontractor Follow-ups")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 
@@ -69,22 +70,40 @@ def admin_page(request: Request, _user: str = Depends(require_admin)):
             "items": items,
             "messages": recent_messages,
             "company": config.COMPANY_NAME,
+            "flash": request.query_params.get("msg"),
+            "flash_kind": request.query_params.get("kind", "info"),
         },
     )
 
 
-@app.post("/admin/subs")
-def add_sub(
-    name: str = Form(...),
-    phone: str = Form(...),
+@app.post("/admin/upload-sheet")
+async def upload_sheet(
+    file: UploadFile = File(...),
     _user: str = Depends(require_admin),
 ):
-    with db.connect() as conn:
-        conn.execute(
-            "INSERT INTO subcontractors (name, phone) VALUES (?, ?)",
-            (name.strip(), messaging.normalize_phone(phone)),
+    data = await file.read()
+    try:
+        records = sheet_import.parse_workbook(data)
+        counts = sheet_import.apply_records(records)
+    except sheet_import.SheetError as e:
+        return RedirectResponse(
+            f"/admin?kind=error&msg={quote_plus(str(e))}", status_code=303
         )
-    return RedirectResponse("/admin", status_code=303)
+    msg = (
+        f"Loaded {counts['items']} open items across {counts['jobs']} jobs. "
+        f"Subs: {counts['subs_added']} new, {counts['subs_updated']} updated."
+    )
+    return RedirectResponse(f"/admin?kind=ok&msg={quote_plus(msg)}", status_code=303)
+
+
+@app.get("/admin/sheet-template")
+def sheet_template(_user: str = Depends(require_admin)):
+    data = sheet_import.template_workbook_bytes()
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="subtext-template.xlsx"'},
+    )
 
 
 @app.post("/admin/subs/{sub_id}/toggle")
@@ -92,20 +111,6 @@ def toggle_sub(sub_id: int, _user: str = Depends(require_admin)):
     with db.connect() as conn:
         conn.execute(
             "UPDATE subcontractors SET active = 1 - active WHERE id = ?", (sub_id,)
-        )
-    return RedirectResponse("/admin", status_code=303)
-
-
-@app.post("/admin/jobs")
-def add_job(
-    title: str = Form(...),
-    subcontractor_id: int = Form(...),
-    _user: str = Depends(require_admin),
-):
-    with db.connect() as conn:
-        conn.execute(
-            "INSERT INTO jobs (title, subcontractor_id) VALUES (?, ?)",
-            (title.strip(), subcontractor_id),
         )
     return RedirectResponse("/admin", status_code=303)
 
@@ -118,20 +123,6 @@ def update_job_status(
 ):
     with db.connect() as conn:
         conn.execute("UPDATE jobs SET status = ? WHERE id = ?", (status_value, job_id))
-    return RedirectResponse("/admin", status_code=303)
-
-
-@app.post("/admin/items")
-def add_item(
-    job_id: int = Form(...),
-    description: str = Form(...),
-    _user: str = Depends(require_admin),
-):
-    with db.connect() as conn:
-        conn.execute(
-            "INSERT INTO open_items (job_id, description) VALUES (?, ?)",
-            (job_id, description.strip()),
-        )
     return RedirectResponse("/admin", status_code=303)
 
 

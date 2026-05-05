@@ -146,7 +146,7 @@ def prepare_preview() -> dict:
 
 
 def _format_preview(queued: list) -> str:
-    lines = [f"Skynet: {len(queued)} follow-up{'s' if len(queued) != 1 else ''} queued for 8am."]
+    lines = [f"Subtext: {len(queued)} follow-up{'s' if len(queued) != 1 else ''} queued for 8am."]
     for q in queued:
         lines.append(f"{q['seq']}. {q['name']} ({q['item_count']} item{'s' if q['item_count'] != 1 else ''})")
     lines.append("")

@@ -1,6 +1,6 @@
-# Skynet
+# Subtext
 
-Daily SMS follow-ups to subcontractors about their open items, with reply tracking.
+Daily SMS follow-ups to subcontractors about their open items, with reply tracking. (Working name — repo and Render service are still "Skynet" under the hood.)
 
 - **Stack:** Python · FastAPI · SQLite · Twilio
 - **Hosting:** Render (one web service + persistent disk)
@@ -10,7 +10,7 @@ Daily SMS follow-ups to subcontractors about their open items, with reply tracki
 
 ## What it does
 
-1. You add subcontractors, jobs, and open items in a small admin web UI.
+1. You upload an `.xlsx` of subs / jobs / open items in the admin web UI. (You can update it as often as you like — each upload replaces the current set.)
 2. **7:30am — preview.** The app texts *you* a numbered list of who's about to be contacted. You can reply `skip 1`, `skip 1,3`, or `skip 1-3` to drop anyone, `send` to fire immediately, or `status` to recheck what's queued.
 3. **8:00am — send.** Whatever is still pending goes out to subs. If you don't reply to the preview at all, everything sends as-is.
 4. Sub replies hit a Twilio webhook and get logged against the sub. You read replies in the admin UI.
@@ -29,7 +29,7 @@ Reply with a quick status on each (e.g. "1 done, 2 by Friday"). Reply STOP to op
 Sample 7:30am preview text to you:
 
 ```
-Skynet: 2 follow-ups queued for 8am.
+Subtext: 2 follow-ups queued for 8am.
 1. Carlos Garcia (3 items)
 2. Jim Smith (2 items)
 
@@ -71,12 +71,30 @@ Open <http://localhost:8000/admin> — username is `admin`, password is whatever
 
 ---
 
+## The spreadsheet
+
+In the admin UI, click **Download template** to get a starter `.xlsx`. The format is:
+
+| Name           | Phone         | Job              | Item                       |
+|----------------|---------------|------------------|----------------------------|
+| Carlos Garcia  | 512-555-1234  | 123 Oak St       | finish drywall in master   |
+| Carlos Garcia  | 512-555-1234  | 123 Oak St       | punchlist photos to me     |
+| Carlos Garcia  | 512-555-1234  | 47 Pine Ln       | confirm Tuesday start      |
+| Jim Smith      | 512-555-9876  | 47 Pine Ln       | rough plumbing inspection  |
+
+- **One row per open item.** A sub with three open items gets three rows.
+- Same `Name` + `Phone` across rows = same sub. Same `Sub` + `Job` across rows = same job.
+- Phone format is flexible (`512-555-1234`, `(512) 555-1234`, `+15125551234` all work).
+- Headers are case-insensitive and tolerate variants like "Phone Number" or "Job Title".
+
+**What an upload does:** every existing job and open item is wiped and rebuilt from the sheet. Subs are upserted by phone — existing subs and their message history are preserved. Edit the spreadsheet locally each evening, upload, done.
+
+---
+
 ## Sending a test text
 
-1. Add yourself as a subcontractor in `/admin`.
-2. Add a job pointed at yourself.
-3. Add an open item under that job.
-4. Click **Send today's follow-ups now**. You should get a text within seconds.
+1. Put yourself in the spreadsheet as one row (Name, your phone, any job, any item) and upload.
+2. Click **Send today's follow-ups now**. You should get a text within seconds.
 
 ---
 
@@ -123,10 +141,9 @@ If you ever want to bypass the preview/skip flow and just fire immediately (usef
 
 ## How to use it day-to-day
 
-- Add subs and active jobs as you go.
-- Each evening (or whenever), drop new open items under the relevant job. The morning text goes out automatically.
-- When a sub replies, it shows up in the **Recent Messages** section. Mark items `done` or `blocked` based on what they say.
-- Mark a sub inactive (Toggle) to stop their texts without deleting their history.
+- Keep one master spreadsheet of who's working on what. Each evening, edit it (add new items, delete completed ones) and upload — the morning text goes out automatically.
+- When a sub replies, it shows up in the **Recent Messages** section. Mark items `done` or `blocked` based on what they say (or just remove the row from the sheet next time).
+- Mark a sub inactive (Toggle) to stop their texts without deleting their history. Re-uploading a sheet that includes them will reactivate them.
 
 ---
 
