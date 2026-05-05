@@ -20,7 +20,7 @@ from io import BytesIO
 from openpyxl import Workbook, load_workbook
 
 from . import db
-from .messaging import normalize_phone
+from .utils import normalize_phone
 
 EXPECTED = ("name", "phone", "job", "item")
 

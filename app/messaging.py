@@ -1,9 +1,14 @@
+from __future__ import annotations
+
 import re
 from datetime import datetime
 from typing import Iterable
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from . import config, db, dropbox_sync, sms
+from .utils import first_name, normalize_phone
+
+__all__ = ["normalize_phone", "first_name"]
 
 
 def _format_dropbox_warning(result: dict) -> str | None:
@@ -24,22 +29,6 @@ def _is_weekend_locally() -> bool:
     except ZoneInfoNotFoundError:
         tz = ZoneInfo("UTC")
     return datetime.now(tz).weekday() >= 5
-
-
-def normalize_phone(raw: str) -> str:
-    cleaned = "".join(c for c in raw if c.isdigit() or c == "+")
-    if cleaned.startswith("+"):
-        return cleaned
-    if len(cleaned) == 10:
-        return "+1" + cleaned
-    if len(cleaned) == 11 and cleaned.startswith("1"):
-        return "+" + cleaned
-    return cleaned
-
-
-def first_name(full_name: str) -> str:
-    parts = full_name.strip().split()
-    return parts[0] if parts else ""
 
 
 def fetch_open_items_for_sub(conn, sub_id: int):
