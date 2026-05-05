@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from twilio.request_validator import RequestValidator
 
-from . import config, db, messaging, sheet_import
+from . import config, db, dropbox_sync, messaging, sheet_import
 from .auth import require_admin
 
 app = FastAPI(title="Subtext — Subcontractor Follow-ups")
@@ -72,8 +72,29 @@ def admin_page(request: Request, _user: str = Depends(require_admin)):
             "company": config.COMPANY_NAME,
             "flash": request.query_params.get("msg"),
             "flash_kind": request.query_params.get("kind", "info"),
+            "dropbox_configured": dropbox_sync.is_configured(),
+            "dropbox_path": config.DROPBOX_FILE_PATH,
         },
     )
+
+
+@app.post("/admin/refresh-from-dropbox")
+def refresh_from_dropbox(_user: str = Depends(require_admin)):
+    result = dropbox_sync.try_pull()
+    if not result.get("configured"):
+        msg = "Dropbox isn't configured. Set DROPBOX_* env vars first."
+        kind = "error"
+    elif not result.get("ok"):
+        msg = f"Dropbox pull failed: {result.get('error', 'unknown error')}"
+        kind = "error"
+    else:
+        msg = (
+            f"Pulled from Dropbox: {result['items']} open items across "
+            f"{result['jobs']} jobs. Subs: {result['subs_added']} new, "
+            f"{result['subs_updated']} updated."
+        )
+        kind = "ok"
+    return RedirectResponse(f"/admin?kind={kind}&msg={quote_plus(msg)}", status_code=303)
 
 
 @app.post("/admin/upload-sheet")

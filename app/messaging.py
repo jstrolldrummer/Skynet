@@ -3,7 +3,19 @@ from datetime import datetime
 from typing import Iterable
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from . import config, db, sms
+from . import config, db, dropbox_sync, sms
+
+
+def _format_dropbox_warning(result: dict) -> str | None:
+    """Return a short human-readable warning if the Dropbox pull failed, else None."""
+    if not result.get("configured"):
+        return None
+    if result.get("ok"):
+        return None
+    err = (result.get("error") or "").strip()
+    if len(err) > 100:
+        err = err[:97] + "..."
+    return f"Dropbox pull failed: {err}. Using last-known data."
 
 
 def _is_weekend_locally() -> bool:
@@ -78,6 +90,7 @@ def send_daily_followups() -> dict:
     """Immediate sweep: compose and send every active sub's open items right now."""
     if config.SKIP_WEEKENDS and _is_weekend_locally():
         return {"skipped": "weekend", "sent": 0}
+    dropbox_result = dropbox_sync.try_pull()
     sent = 0
     skipped = 0
     errors = []
@@ -96,7 +109,12 @@ def send_daily_followups() -> dict:
                 sent += 1
             else:
                 errors.append(sub["name"])
-    return {"sent": sent, "skipped": skipped, "errors": errors}
+    return {
+        "sent": sent,
+        "skipped": skipped,
+        "errors": errors,
+        "dropbox": dropbox_result,
+    }
 
 
 def prepare_preview() -> dict:
@@ -108,6 +126,9 @@ def prepare_preview() -> dict:
         return {"error": "OWNER_PHONE not configured"}
     if config.SKIP_WEEKENDS and _is_weekend_locally():
         return {"skipped": "weekend", "queued": 0, "preview_sent": False}
+
+    dropbox_result = dropbox_sync.try_pull()
+    dropbox_warning = _format_dropbox_warning(dropbox_result)
 
     queued = []
     with db.connect() as conn:
@@ -132,9 +153,19 @@ def prepare_preview() -> dict:
             queued.append({"seq": seq, "name": sub["name"], "item_count": len(items)})
 
         if not queued:
-            return {"queued": 0, "preview_sent": False}
+            # Still tell the owner if Dropbox blew up but there happens to be no work.
+            if dropbox_warning:
+                try:
+                    sms.send_sms(config.OWNER_PHONE, f"Subtext: {dropbox_warning}")
+                except Exception:
+                    pass
+            return {
+                "queued": 0,
+                "preview_sent": False,
+                "dropbox": dropbox_result,
+            }
 
-        preview_body = _format_preview(queued)
+        preview_body = _format_preview(queued, dropbox_warning)
         try:
             sms.send_sms(config.OWNER_PHONE, preview_body)
             preview_sent = True
@@ -142,11 +173,20 @@ def prepare_preview() -> dict:
             preview_sent = False
             queued.append({"preview_error": str(e)})
 
-    return {"queued": len(queued), "preview_sent": preview_sent, "subs": queued}
+    return {
+        "queued": len(queued),
+        "preview_sent": preview_sent,
+        "subs": queued,
+        "dropbox": dropbox_result,
+    }
 
 
-def _format_preview(queued: list) -> str:
-    lines = [f"Subtext: {len(queued)} follow-up{'s' if len(queued) != 1 else ''} queued for 8am."]
+def _format_preview(queued: list, warning: str | None = None) -> str:
+    lines = []
+    if warning:
+        lines.append(f"⚠ {warning}")
+        lines.append("")
+    lines.append(f"Subtext: {len(queued)} follow-up{'s' if len(queued) != 1 else ''} queued for 8am.")
     for q in queued:
         lines.append(f"{q['seq']}. {q['name']} ({q['item_count']} item{'s' if q['item_count'] != 1 else ''})")
     lines.append("")

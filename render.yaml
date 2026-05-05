@@ -27,6 +27,14 @@ services:
         value: America/Chicago
       - key: SKIP_WEEKENDS
         value: "true"
+      - key: DROPBOX_APP_KEY
+        sync: false
+      - key: DROPBOX_APP_SECRET
+        sync: false
+      - key: DROPBOX_REFRESH_TOKEN
+        sync: false
+      - key: DROPBOX_FILE_PATH
+        value: /subtext.xlsx
       - key: DATABASE_PATH
         value: /var/data/skynet.db
     disk:

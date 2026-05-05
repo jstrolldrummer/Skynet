@@ -33,3 +33,11 @@ SKIP_WEEKENDS = os.environ.get("SKIP_WEEKENDS", "true").strip().lower() in (
     "yes",
     "on",
 )
+
+# Dropbox sync. When all four are set, the app pulls the .xlsx automatically at
+# preview/send time and on demand from the admin UI. See README + the
+# `python -m app.dropbox_setup` helper for getting a refresh token.
+DROPBOX_APP_KEY = os.environ.get("DROPBOX_APP_KEY", "")
+DROPBOX_APP_SECRET = os.environ.get("DROPBOX_APP_SECRET", "")
+DROPBOX_REFRESH_TOKEN = os.environ.get("DROPBOX_REFRESH_TOKEN", "")
+DROPBOX_FILE_PATH = os.environ.get("DROPBOX_FILE_PATH", "/subtext.xlsx")

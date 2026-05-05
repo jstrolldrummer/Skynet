@@ -10,8 +10,8 @@ Daily SMS follow-ups to subcontractors about their open items, with reply tracki
 
 ## What it does
 
-1. You upload an `.xlsx` of subs / jobs / open items in the admin web UI. (You can update it as often as you like — each upload replaces the current set.)
-2. **7:30am — preview.** The app texts *you* a numbered list of who's about to be contacted. You can reply `skip 1`, `skip 1,3`, or `skip 1-3` to drop anyone, `send` to fire immediately, or `status` to recheck what's queued.
+1. You keep a single `.xlsx` of subs / jobs / open items in your Dropbox. Edit it whenever — Subtext pulls the latest version automatically each morning.
+2. **7:30am — pull + preview.** The app downloads the spreadsheet from Dropbox, applies it, then texts *you* a numbered list of who's about to be contacted. You can reply `skip 1`, `skip 1,3`, or `skip 1-3` to drop anyone, `send` to fire immediately, or `status` to recheck what's queued.
 3. **8:00am — send.** Whatever is still pending goes out to subs. If you don't reply to the preview at all, everything sends as-is.
 4. Sub replies hit a Twilio webhook and get logged against the sub. You read replies in the admin UI.
 
@@ -73,7 +73,7 @@ Open <http://localhost:8000/admin> — username is `admin`, password is whatever
 
 ## The spreadsheet
 
-In the admin UI, click **Download template** to get a starter `.xlsx`. The format is:
+Click **Download template** in the admin UI to get a starter `.xlsx`. The format is:
 
 | Name           | Phone         | Job              | Item                       |
 |----------------|---------------|------------------|----------------------------|
@@ -87,14 +87,42 @@ In the admin UI, click **Download template** to get a starter `.xlsx`. The forma
 - Phone format is flexible (`512-555-1234`, `(512) 555-1234`, `+15125551234` all work).
 - Headers are case-insensitive and tolerate variants like "Phone Number" or "Job Title".
 
-**What an upload does:** every existing job and open item is wiped and rebuilt from the sheet. Subs are upserted by phone — existing subs and their message history are preserved. Edit the spreadsheet locally each evening, upload, done.
+**What an apply does** (whether triggered by Dropbox sync or manual upload): every existing job and open item is wiped and rebuilt from the sheet. Subs are upserted by phone — existing subs and their message history are preserved.
+
+---
+
+## Dropbox sync (recommended)
+
+Subtext can pull the spreadsheet from your Dropbox automatically. One-time setup:
+
+1. **Create a Dropbox app.** Go to <https://www.dropbox.com/developers/apps> → "Create app". Choose:
+   - API: **Scoped access**
+   - Access type: **App folder** (recommended — Subtext only sees its own folder)
+   - Name: anything (e.g. `Subtext`)
+2. **Grant scopes.** On the new app's page, open the **Permissions** tab and check `files.content.read` and `files.metadata.read`. Click **Submit**.
+3. **Mint a refresh token.** From your local checkout, run:
+   ```bash
+   python -m app.dropbox_setup
+   ```
+   It prompts for the App key + secret (from the Dropbox app's Settings tab), opens an authorize URL, and exchanges the code it gives you for a long-lived refresh token. It prints the four env vars to copy.
+4. **Set the env vars** — locally in `.env`, on Render in the dashboard's environment settings:
+   - `DROPBOX_APP_KEY`
+   - `DROPBOX_APP_SECRET`
+   - `DROPBOX_REFRESH_TOKEN`
+   - `DROPBOX_FILE_PATH` — relative to the app folder, e.g. `/subtext.xlsx`
+5. **Drop the spreadsheet** into `Apps/<your-app-name>/` on your computer (Dropbox creates that folder when you install the app). Save as `subtext.xlsx`.
+
+After that, Subtext pulls automatically before each 7:30am preview, and you can hit **Refresh from Dropbox now** in the admin UI any time.
+
+If a pull fails (Dropbox down, file deleted, auth revoked), the morning text still goes out using last-known data, and your preview text starts with a `⚠ Dropbox pull failed: ...` warning so you know.
 
 ---
 
 ## Sending a test text
 
-1. Put yourself in the spreadsheet as one row (Name, your phone, any job, any item) and upload.
-2. Click **Send today's follow-ups now**. You should get a text within seconds.
+1. Put yourself in the spreadsheet as one row (Name, your phone, any job, any item).
+2. If Dropbox sync is on: save and click **Refresh from Dropbox now**. Otherwise: upload via the manual form.
+3. Click **Send today's follow-ups now**. You should get a text within seconds.
 
 ---
 

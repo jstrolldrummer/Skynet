@@ -40,17 +40,35 @@
   <button type="submit" class="send-now">Send today's follow-ups now</button>
 </form>
 
-<h2>Load from spreadsheet</h2>
+<h2>Source spreadsheet</h2>
 <div class="upload-box">
+  {% if dropbox_configured %}
+    <form method="post" action="/admin/refresh-from-dropbox" class="inline">
+      <button type="submit">Refresh from Dropbox now</button>
+    </form>
+    <small>
+      Dropbox sync is on. Subtext pulls <code>{{ dropbox_path }}</code>
+      automatically before each 7:30am preview, and you can hit the button above
+      to pull right now. Edit the file in Dropbox, save, refresh.
+    </small>
+  {% else %}
+    <small class="warn">
+      Dropbox sync isn't configured. Set <code>DROPBOX_APP_KEY</code>,
+      <code>DROPBOX_APP_SECRET</code>, <code>DROPBOX_REFRESH_TOKEN</code>, and
+      <code>DROPBOX_FILE_PATH</code> (run <code>python -m app.dropbox_setup</code>
+      to generate them). Until then, you can upload manually below.
+    </small>
+  {% endif %}
+  <hr style="border: 0; border-top: 1px solid #e5e5ea; margin: 14px 0;">
   <form method="post" action="/admin/upload-sheet" enctype="multipart/form-data" class="row">
     <input type="file" name="file" accept=".xlsx" required>
     <button type="submit">Upload &amp; replace</button>
     <a href="/admin/sheet-template">Download template</a>
   </form>
   <small>
-    Columns: <b>Name</b>, <b>Phone</b>, <b>Job</b>, <b>Item</b> — one row per open item.
-    Uploading replaces all jobs &amp; open items. Subs are upserted by phone (existing
-    subs and message history are preserved).
+    Manual upload (fallback). Columns: <b>Name</b>, <b>Phone</b>, <b>Job</b>,
+    <b>Item</b> — one row per open item. Replaces all jobs &amp; open items;
+    subs are upserted by phone.
   </small>
 </div>
 
