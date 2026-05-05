@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ company }} — Skynet</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         max-width: 1000px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+  h1 { margin-top: 0; }
+  h2 { border-bottom: 1px solid #eee; padding-bottom: 0.3rem; margin-top: 2rem; }
+  table { border-collapse: collapse; width: 100%; margin-top: 0.5rem; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+  form.inline { display: inline; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  input, select, button { font: inherit; padding: 4px 6px; }
+  .muted { color: #888; }
+  .ok { color: #2a7; }
+  .warn { color: #c60; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 10px; background: #eee; font-size: 0.85em; }
+  .send-now { background: #226; color: white; padding: 8px 14px; border: 0; border-radius: 4px; cursor: pointer; }
+  pre { white-space: pre-wrap; margin: 0; font-family: inherit; }
+</style>
+</head>
+<body>
+
+<h1>{{ company }} — Subcontractor Follow-ups</h1>
+
+<form method="post" action="/admin/send-now" class="inline">
+  <button type="submit" class="send-now">Send today's follow-ups now</button>
+</form>
+
+<h2>Subcontractors</h2>
+<form method="post" action="/admin/subs" class="row">
+  <input name="name" placeholder="Name" required>
+  <input name="phone" placeholder="Phone (e.g. 512-555-1234)" required>
+  <button type="submit">Add</button>
+</form>
+<table>
+<tr><th>Name</th><th>Phone</th><th>Active</th><th></th></tr>
+{% for s in subs %}
+<tr>
+  <td>{{ s.name }}</td>
+  <td>{{ s.phone }}</td>
+  <td>{% if s.active %}<span class="ok">yes</span>{% else %}<span class="muted">no</span>{% endif %}</td>
+  <td>
+    <form method="post" action="/admin/subs/{{ s.id }}/toggle" class="inline">
+      <button type="submit">Toggle</button>
+    </form>
+  </td>
+</tr>
+{% endfor %}
+</table>
+
+<h2>Jobs</h2>
+<form method="post" action="/admin/jobs" class="row">
+  <select name="subcontractor_id" required>
+    <option value="">Sub…</option>
+    {% for s in subs %}{% if s.active %}<option value="{{ s.id }}">{{ s.name }}</option>{% endif %}{% endfor %}
+  </select>
+  <input name="title" placeholder="Job title (e.g. 123 Oak St — framing)" required style="flex: 1; min-width: 240px;">
+  <button type="submit">Add</button>
+</form>
+<table>
+<tr><th>Job</th><th>Sub</th><th>Status</th><th></th></tr>
+{% for j in jobs %}
+<tr>
+  <td>{{ j.title }}</td>
+  <td>{{ j.sub_name }}</td>
+  <td><span class="pill">{{ j.status }}</span></td>
+  <td>
+    <form method="post" action="/admin/jobs/{{ j.id }}/status" class="inline">
+      <select name="status_value">
+        <option value="active" {% if j.status == 'active' %}selected{% endif %}>active</option>
+        <option value="done" {% if j.status == 'done' %}selected{% endif %}>done</option>
+        <option value="on_hold" {% if j.status == 'on_hold' %}selected{% endif %}>on_hold</option>
+      </select>
+      <button type="submit">Update</button>
+    </form>
+  </td>
+</tr>
+{% endfor %}
+</table>
+
+<h2>Open Items</h2>
+<form method="post" action="/admin/items" class="row">
+  <select name="job_id" required>
+    <option value="">Job…</option>
+    {% for j in jobs %}{% if j.status == 'active' %}<option value="{{ j.id }}">{{ j.sub_name }} — {{ j.title }}</option>{% endif %}{% endfor %}
+  </select>
+  <input name="description" placeholder="What's open?" required style="flex: 1; min-width: 240px;">
+  <button type="submit">Add</button>
+</form>
+<table>
+<tr><th>Item</th><th>Job</th><th>Sub</th><th>Status</th><th></th></tr>
+{% for i in items %}
+<tr>
+  <td>{{ i.description }}</td>
+  <td>{{ i.job_title }}</td>
+  <td>{{ i.sub_name }}</td>
+  <td><span class="pill">{{ i.status }}</span></td>
+  <td>
+    <form method="post" action="/admin/items/{{ i.id }}/status" class="inline">
+      <select name="status_value">
+        <option value="open" {% if i.status == 'open' %}selected{% endif %}>open</option>
+        <option value="done" {% if i.status == 'done' %}selected{% endif %}>done</option>
+        <option value="blocked" {% if i.status == 'blocked' %}selected{% endif %}>blocked</option>
+      </select>
+      <button type="submit">Save</button>
+    </form>
+  </td>
+</tr>
+{% endfor %}
+</table>
+
+<h2>Recent Messages</h2>
+<table>
+<tr><th>When</th><th>Sub</th><th>Dir</th><th>Body</th></tr>
+{% for m in messages %}
+<tr>
+  <td class="muted">{{ m.sent_at }}</td>
+  <td>{{ m.sub_name or '—' }}</td>
+  <td>{% if m.direction == 'inbound' %}<span class="warn">in</span>{% else %}<span class="muted">out</span>{% endif %}</td>
+  <td><pre>{{ m.body }}</pre></td>
+</tr>
+{% endfor %}
+</table>
+
+</body>
+</html>
