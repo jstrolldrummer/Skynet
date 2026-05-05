@@ -69,7 +69,11 @@ def main() -> int:
     print(f"DROPBOX_APP_KEY={app_key}")
     print(f"DROPBOX_APP_SECRET={app_secret}")
     print(f"DROPBOX_REFRESH_TOKEN={refresh_token}")
-    print("DROPBOX_FILE_PATH=/subtext.xlsx   # filename inside Apps/<your-app>/")
+    print("DROPBOX_FILE_PATH=/subtext.xlsx")
+    print(
+        "\n(DROPBOX_FILE_PATH is the filename inside Apps/<your-app>/ — "
+        "change it if you named your file something else.)"
+    )
     print(
         "\nThen drop your spreadsheet into the app folder Dropbox created at "
         "Apps/<your-app>/ on your computer."
