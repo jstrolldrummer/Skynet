@@ -1,0 +1,51 @@
+search:
+  towns:
+    - "Greenwich, CT"
+    - "Stamford, CT"
+    - "Darien, CT"
+    - "New Canaan, CT"
+    - "Norwalk, CT"
+  min_price: 1000000
+  max_price: 5000000
+  min_beds: 3
+  home_types: ["Houses"]
+
+scoring:
+  weights:
+    seventy_percent_rule: 0.30
+    price_per_sqft_vs_median: 0.25
+    days_on_market: 0.15
+    distressed_signals: 0.20
+    price_drop_history: 0.10
+
+  luxury_multiplier: 0.82
+  rehab_cost_per_sqft_default: 75
+  selling_costs_pct: 0.08
+  holding_costs_monthly_pct: 0.012
+
+digest:
+  top_n: 10
+  min_score_to_alert: 60
+
+distressed_keywords:
+  - "as-is"
+  - "as is"
+  - "estate sale"
+  - "estate of"
+  - "foreclosure"
+  - "short sale"
+  - "needs work"
+  - "fixer"
+  - "tlc"
+  - "handyman"
+  - "investor"
+  - "cash only"
+  - "bring offers"
+  - "motivated seller"
+  - "must sell"
+  - "renovate"
+  - "gut"
+  - "tear down"
+  - "teardown"
+  - "build your dream"
+  - "land value"
