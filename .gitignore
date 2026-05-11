@@ -1,0 +1,24 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+
+# Local credential & state stores — never commit
+secrets/
+data/
+*.sqlite3
+*.sqlite3-journal
+
+# Local mirror of created folders
+mirror/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
