@@ -93,26 +93,42 @@ Open `.env` and at minimum fill:
 
 ### 5. Proposal template
 
-Drop your standard proposal Word doc at `./templates/proposal_template.docx`.
-Use these placeholders anywhere in the document — they will be replaced when
-the draft is generated:
+A Wyatt + Gray default template is already bundled at
+`./templates/proposal_template.docx`. It contains your standard boilerplate
+(General Conditions, Exclusions & Qualifications Parts I–VI, Limitation of
+Liability, Scope Definition & Ownership, Payment Terms, signature block) plus
+placeholders for the per-project bits. The cover page auto-fills from your
+`SENDER_*` env vars and the AI-extracted client/project info. You can edit the
+.docx by hand or regenerate it with `python scripts/build_default_template.py`.
 
-| Placeholder            | Replaced with                              |
-| ---------------------- | ------------------------------------------ |
-| `{{CLIENT_COMPANY}}`   | Detected client / company                  |
-| `{{CONTACT_NAME}}`     | Detected contact (else sender's name)      |
-| `{{CONTACT_EMAIL}}`    | Sender's email address                     |
-| `{{PROJECT_NAME}}`     | Detected project name                      |
-| `{{PROJECT_LOCATION}}` | Detected project location                  |
-| `{{DUE_DATE}}`         | Bid due date (ISO) if found                |
-| `{{SCOPE_SUMMARY}}`    | 2–5 sentence summary of the scope          |
-| `{{TRADES}}`           | Comma-separated detected trades            |
-| `{{TODAY}}`            | Today's date (ISO)                         |
-| `{{RECEIVED_DATE}}`    | Date the email was received                |
-| `{{SUBJECT}}`          | Original email subject                     |
+Placeholders the drafter understands (anywhere in the doc):
 
-If the template is missing, a minimal fallback `.docx` is generated so you
-never lose information.
+| Placeholder                   | Replaced with                          |
+| ----------------------------- | -------------------------------------- |
+| `{{PROJECT_TITLE}}`           | "Project Name — Location"              |
+| `{{PROPOSAL_NUMBER}}`         | e.g. `Proposal 1-1 (DRAFT)`            |
+| `{{STATUS}}`                  | `DRAFT`                                |
+| `{{ISSUE_DATE}}`              | Today (e.g. `May 11, 2026`)            |
+| `{{SENDER_NAME}}`             | From `SENDER_NAME` env var             |
+| `{{SENDER_COMPANY}}`          | From `SENDER_COMPANY`                  |
+| `{{SENDER_PHONE}}`            | From `SENDER_PHONE`                    |
+| `{{SENDER_EMAIL}}`            | From `SENDER_EMAIL`                    |
+| `{{SENDER_ADDRESS}}`          | From `SENDER_ADDRESS`                  |
+| `{{CLIENT_COMPANY}}`          | Detected client / company              |
+| `{{CONTACT_NAME}}`            | Detected contact (else sender's name)  |
+| `{{CONTACT_EMAIL}}`           | Sender's email address                 |
+| `{{PROJECT_NAME}}`            | Detected project name                  |
+| `{{PROJECT_LOCATION}}`        | Detected project location              |
+| `{{DUE_DATE}}`                | Bid due date (ISO) if found            |
+| `{{SUMMARY_SCOPE_OF_WORK}}`   | AI-extracted scope (2–5 sentences)     |
+| `{{SCOPE_SUMMARY}}`           | Same as above                          |
+| `{{TRADES}}`                  | Comma-separated detected trades        |
+| `{{TODAY}}`                   | Today (ISO)                            |
+| `{{RECEIVED_DATE}}`           | Date the email was received            |
+| `{{SUBJECT}}`                 | Original email subject                 |
+
+If the template file is missing, a minimal fallback `.docx` is generated so
+you never lose information.
 
 ## Run
 

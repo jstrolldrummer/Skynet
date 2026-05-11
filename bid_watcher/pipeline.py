@@ -88,7 +88,7 @@ class Pipeline:
 
         # Draft proposal
         try:
-            docx_bytes = render_proposal(self.s.proposal_template_path, email, c)
+            docx_bytes = render_proposal(self.s.proposal_template_path, email, c, self.s)
             self.sink.upload_bytes(
                 f"{project_path}/Proposal/{sanitize_segment(folder_name)} - PROPOSAL DRAFT.docx",
                 docx_bytes,

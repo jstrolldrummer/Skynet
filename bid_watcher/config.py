@@ -36,6 +36,13 @@ class Settings(BaseSettings):
     proposal_template_path: Path = Field(Path("./templates/proposal_template.docx"), alias="PROPOSAL_TEMPLATE_PATH")
     local_mirror_dir: Optional[Path] = Field(None, alias="LOCAL_MIRROR_DIR")
 
+    # Sender / company info that fills the cover page
+    sender_name: str = Field("Joe Stroll", alias="SENDER_NAME")
+    sender_company: str = Field("Wyatt + Gray Custom Homes LLC", alias="SENDER_COMPANY")
+    sender_phone: str = Field("(475) 747-1804", alias="SENDER_PHONE")
+    sender_email: str = Field("Joe@WyattGrayHomes.com", alias="SENDER_EMAIL")
+    sender_address: str = Field("336 Rock Rimmon Rd, Stamford, CT 06903, USA", alias="SENDER_ADDRESS")
+
     state_db_path: Path = Field(Path("./data/state.sqlite3"), alias="STATE_DB_PATH")
 
     never_reply: bool = Field(True, alias="NEVER_REPLY")
