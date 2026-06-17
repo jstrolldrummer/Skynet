@@ -1,0 +1,19 @@
+{
+  "name": "skynet-dropbox-connector",
+  "version": "0.1.0",
+  "description": "Dropbox connector for the Skynet master brain (MCP server + CLI)",
+  "type": "module",
+  "bin": {
+    "skynet-dropbox": "./src/cli.js"
+  },
+  "scripts": {
+    "server": "node src/server.js",
+    "cli": "node src/cli.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
