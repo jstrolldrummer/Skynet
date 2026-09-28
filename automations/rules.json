@@ -1,0 +1,31 @@
+{
+  "$comment": "Skynet automation rules. Data, not code. 'check' rules are evaluated by `skynet check` (wire that to a daily Routine/cron). 'event' rules fire when the brain emits a matching event. Actions: notify | memory_set | app_invoke.",
+  "rules": [
+    {
+      "id": "nudge_weight",
+      "name": "Nudge if no weight logged in 3 days",
+      "enabled": true,
+      "trigger": {
+        "type": "check",
+        "stale": {
+          "namespace": "health",
+          "collection": "metrics",
+          "where": {"type": "weight"},
+          "days": 3
+        }
+      },
+      "actions": [
+        {"type": "notify", "message": "Health: no weight logged in 3+ days — log one with `skynet health log weight <lbs>`."}
+      ]
+    },
+    {
+      "id": "record_metric_activity",
+      "name": "Stamp last-activity time when any metric is logged",
+      "enabled": true,
+      "trigger": {"type": "event", "on": "health.metric_logged"},
+      "actions": [
+        {"type": "memory_set", "namespace": "health", "key": "last_logged_event", "value": "see metrics collection"}
+      ]
+    }
+  ]
+}

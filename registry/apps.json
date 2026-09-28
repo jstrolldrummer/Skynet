@@ -1,0 +1,78 @@
+{
+  "$comment": "Skynet app registry. Data, not code — edit this to add or update apps. 'live' apps have a runnable adapter (location = module:Class). 'external' apps run on Joe's Mac/Cowork and Skynet coordinates them via shared memory + intents. 'planned' apps are not built yet.",
+  "apps": [
+    {
+      "id": "health",
+      "name": "Health",
+      "summary": "Tracks Joe's health metrics (weight, sleep, workouts, BP, steps).",
+      "status": "live",
+      "location": "skynet.apps.health:HealthApp",
+      "tags": ["personal"],
+      "functions": [
+        {"name": "log", "summary": "Record a metric", "usage": "skynet health log weight 190"},
+        {"name": "list", "summary": "Recent entries", "usage": "skynet health list --type weight"},
+        {"name": "summary", "summary": "Latest reading per metric", "usage": "skynet health summary"},
+        {"name": "trend", "summary": "Change over N days", "usage": "skynet health trend weight --days 30"},
+        {"name": "goal", "summary": "Set or read a target", "usage": "skynet health goal weight 185"}
+      ]
+    },
+    {
+      "id": "foreman",
+      "name": "Foreman",
+      "summary": "Job/field management — site photos, notes, and job tracking.",
+      "status": "external",
+      "location": "",
+      "tags": ["contracting", "apps"],
+      "functions": [
+        {"name": "photo", "summary": "Capture/route a field photo", "usage": "runs via the Foreman Photo shortcut on iPhone"},
+        {"name": "note", "summary": "Add a job note", "usage": "lives in Drive/Apps/Foreman"}
+      ]
+    },
+    {
+      "id": "subtext",
+      "name": "Subtext",
+      "summary": "Automated iMessage follow-ups to subs and clients.",
+      "status": "external",
+      "location": "",
+      "tags": ["contracting", "apps"],
+      "functions": [
+        {"name": "followup", "summary": "Queue an automated follow-up text", "usage": "runs from ~/Subtext via LaunchAgents"},
+        {"name": "status", "summary": "Check the follow-up queue", "usage": "backed by subtext.xlsx"}
+      ]
+    },
+    {
+      "id": "selections",
+      "name": "Selections App",
+      "summary": "Client finish/product selections for active jobs.",
+      "status": "external",
+      "location": "",
+      "tags": ["contracting", "apps"],
+      "functions": [
+        {"name": "list", "summary": "List selections for a job", "usage": "lives in Drive/Selections App"}
+      ]
+    },
+    {
+      "id": "punchlist",
+      "name": "Punch List App",
+      "summary": "End-of-job punch list items and sign-off.",
+      "status": "external",
+      "location": "",
+      "tags": ["contracting", "apps"],
+      "functions": [
+        {"name": "items", "summary": "List open punch items", "usage": "lives in Drive/Punch List App"}
+      ]
+    },
+    {
+      "id": "brain_notes",
+      "name": "Brain Notes",
+      "summary": "Joe's Drive 'Brain' — passive memory (MASTER.md and sub-files).",
+      "status": "external",
+      "location": "",
+      "tags": ["personal", "contracting", "finance"],
+      "functions": [
+        {"name": "read", "summary": "Read a Brain markdown file", "usage": "Drive/Apps/Brain/MASTER.md"},
+        {"name": "update", "summary": "Update a Brain markdown file", "usage": "date every update"}
+      ]
+    }
+  ]
+}
