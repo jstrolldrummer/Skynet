@@ -59,16 +59,16 @@ class Brain:
     # -- app loading & dispatch ----------------------------------------------
 
     def adapter(self, app_id: str) -> BaseApp:
-        """Instantiate (and cache) the live adapter for an app id."""
+        """Instantiate (and cache) the adapter for a runnable app id."""
         if app_id in self._adapters:
             return self._adapters[app_id]
         app = self.registry.get(app_id)
         if app is None:
             raise KeyError(f"Unknown app: {app_id!r}")
-        if not app.is_live:
+        if not app.is_runnable:
             raise ValueError(
-                f"App {app_id!r} is not live (status={app.status!r}); "
-                "it has no runnable adapter yet."
+                f"App {app_id!r} is not runnable (status={app.status!r}); "
+                "it has no in-process adapter."
             )
         module_path, _, class_name = app.location.partition(":")
         module = importlib.import_module(module_path)
@@ -84,7 +84,7 @@ class Brain:
         app = self.registry.get(app_id)
         if app is None:
             return AppResult.fail(f"Unknown app: {app_id!r}")
-        if not app.is_live:
+        if not app.is_runnable:
             fn = app.function(command)
             hint = f" ({fn.usage})" if fn and fn.usage else ""
             return AppResult.bridge(
@@ -162,6 +162,58 @@ class Brain:
         else:
             self.outbox.append(f"[{rule.id}] unknown action type: {kind!r}")
 
+    # -- bridge queue ----------------------------------------------------------
+    #
+    # Bridge apps (Foreman, Subtext) run on Joe's Mac, not inside Skynet. When a
+    # bridge command is dispatched, its adapter enqueues a request here; a small
+    # runner on the Mac polls the queue, does the work, and marks it done. This
+    # is how Skynet "controls" apps it cannot execute directly — through a shared,
+    # durable to-do queue rather than by pretending to run them.
+
+    BRIDGE_NS = "bridge"
+    BRIDGE_COLLECTION = "queue"
+
+    def bridge_enqueue(
+        self, app_id: str, command: str, params: dict[str, Any] | None = None
+    ) -> dict:
+        return self.memory.append(
+            self.BRIDGE_NS,
+            self.BRIDGE_COLLECTION,
+            {
+                "app": app_id,
+                "command": command,
+                "params": params or {},
+                "status": "pending",
+                "result": None,
+            },
+        )
+
+    def bridge_queue(self, status: str | None = None) -> list[dict]:
+        where = (lambda r: r.get("status") == status) if status else None
+        return self.memory.query(
+            self.BRIDGE_NS, self.BRIDGE_COLLECTION, where=where, newest_first=False
+        )
+
+    def bridge_complete(
+        self, request_id: str, status: str = "done", result: Any = None
+    ) -> bool:
+        """Mark a queued request done/failed and record its result."""
+        data = self.memory._load(self.BRIDGE_NS)  # internal but same-module use
+        series = data["series"].get(self.BRIDGE_COLLECTION, [])
+        changed = False
+        for row in series:
+            if row.get("id") == request_id:
+                row["status"] = status
+                row["result"] = result
+                from .memory import _now_iso
+
+                row["completed_at"] = _now_iso()
+                changed = True
+                break
+        if changed:
+            self.memory._save(self.BRIDGE_NS, data)
+        return changed
+
     # -- overview -------------------------------------------------------------
 
     def status(self) -> dict[str, Any]:
@@ -169,7 +221,11 @@ class Brain:
         return {
             "apps_total": len(apps),
             "apps_live": [a.id for a in apps if a.is_live],
-            "apps_other": [f"{a.id} ({a.status})" for a in apps if not a.is_live],
+            "apps_bridge": [a.id for a in apps if a.is_bridge],
+            "apps_other": [
+                f"{a.id} ({a.status})" for a in apps if not a.is_runnable
+            ],
             "automations": len(self.automations.enabled_rules()),
             "memory_namespaces": self.memory.namespaces(),
+            "bridge_pending": len(self.bridge_queue(status="pending")),
         }

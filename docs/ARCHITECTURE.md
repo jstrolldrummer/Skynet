@@ -35,18 +35,53 @@ functions Joe builds in Cowork. It is deliberately small and made of four parts.
 
 ## App types (honest about boundaries)
 
-- **live** — an in-process adapter that actually runs here (e.g. **Health**).
-  Registry `location` points to `module:Class`; the brain loads and calls it.
-- **external** — apps that run on Joe's Mac or in Cowork (Foreman, Subtext,
-  Selections, Punch List). Skynet can't execute them directly, so a command
-  returns an **intent** (what should happen) and coordinates through shared
-  memory instead of pretending to run them.
+- **live** — an in-process adapter that actually runs here (e.g. **Health**,
+  **Brain Notes**). Registry `location` points to `module:Class`; the brain loads
+  and calls it.
+- **bridge** — apps that run on Joe's Mac (Foreman, Subtext) but that Skynet can
+  still drive: a bridge command is **enqueued** onto a shared to-do queue, and a
+  small runner on the Mac (`runners/bridge_poller.py`) drains it, does the work,
+  and marks it done. Durable, honest control without pretending to execute them.
+- **external** — apps Skynet only knows about; a command returns an **intent**
+  (a description of what should happen). Promote these to `bridge` or `live`
+  when ready.
 - **planned** — not built yet.
 
 This is the key design choice: rather than fake control over apps it can't reach,
-Skynet is a **shared brain + coordinator**. Any app that writes to Skynet's memory
-(or that we build a live adapter / bridge for) becomes controllable and can share
-state with every other app.
+Skynet is a **shared brain + coordinator**. Any app that writes to Skynet's memory,
+gets a live adapter, or is wired to the bridge queue becomes controllable and can
+share state with every other app.
+
+## The bridge queue (controlling Mac apps)
+
+```
+skynet run subtext followup to=Mike msg="need the quote"
+  └▶ brain.dispatch ──▶ SubtextApp (bridge) enqueues a request in memory
+        namespace "bridge", collection "queue", status "pending"
+
+… meanwhile, on Joe's Mac …
+
+python3 runners/bridge_poller.py --watch
+  └▶ reads pending requests ──▶ runs the real Subtext/Foreman tooling
+        └▶ brain.bridge_complete(id, "done", result)  (status flips to done)
+```
+
+Fill in the handlers in `runners/bridge_poller.py` to call the real local tools;
+schedule it with launchd/cron, or run it with `--watch`.
+
+## The Brain Notes bridge (Drive memory)
+
+`brain_notes` is a **live** app that reads/searches/appends the Drive-synced
+"Brain" markdown folder. Point it at the folder with `SKYNET_BRAIN_DIR`
+(defaults to `./brain`). All paths are confined to that folder. `sync` records a
+file inventory into shared memory so other apps can see what's in the Brain.
+
+## The web dashboard
+
+`python3 -m skynet serve` starts a zero-dependency web dashboard (stdlib
+`http.server`) at http://127.0.0.1:8787 showing live app status, health metrics,
+and the pending bridge queue. The data comes from `dashboard_data(brain)` over the
+same registry + memory; the page auto-refreshes every 15s.
 
 ## How commands flow
 
@@ -71,8 +106,9 @@ skynet health log weight 190
 
 ## Roadmap ideas
 
-- A **Google Drive bridge** so the `brain_notes` app can read/update the Drive
-  Brain markdown files directly (Drive is already connected).
-- Bridge adapters for **Foreman/Subtext** (e.g. write a "follow-up requested"
-  record to memory that the Mac side polls).
-- A small **web dashboard** over the same registry + memory.
+- Bridge more apps (Selections, Punch List) onto the queue.
+- A **native Drive API** path for `brain_notes` so it works even without Drive
+  Desktop file sync (currently it reads the synced local folder).
+- Richer automations: schedules, thresholds on any metric, cross-app rules
+  (e.g. "job signed → queue a Subtext follow-up → note it in the Brain").
+- Auth on the dashboard if it's ever exposed beyond localhost.

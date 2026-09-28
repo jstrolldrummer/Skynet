@@ -13,7 +13,7 @@ from skynet.automations import Rule
 
 
 def make_brain(tmp: str) -> Brain:
-    """A brain with an isolated on-disk memory and a health app registered."""
+    """A brain with an isolated on-disk memory and the real app set registered."""
     memory = MemoryStore(Path(tmp) / "mem")
     registry = Registry([
         App(
@@ -25,7 +25,20 @@ def make_brain(tmp: str) -> Brain:
             tags=("personal",),
             functions=(Function("log", "Record"),),
         ),
-        App(id="foreman", name="Foreman", status="external", tags=("apps",)),
+        App(
+            id="foreman",
+            name="Foreman",
+            status="bridge",
+            location="skynet.apps.bridge:ForemanApp",
+            tags=("apps",),
+        ),
+        App(
+            id="brain_notes",
+            name="Brain Notes",
+            status="live",
+            location="skynet.apps.brain_notes:BrainNotesApp",
+        ),
+        App(id="punchlist", name="Punch List", status="external"),
     ])
     rules = Automations([
         Rule(
@@ -132,7 +145,7 @@ class DispatchAndAutomationTests(unittest.TestCase):
     def test_external_app_returns_intent(self):
         with TemporaryDirectory() as tmp:
             brain = make_brain(tmp)
-            r = brain.dispatch("foreman", "photo")
+            r = brain.dispatch("punchlist", "items")  # external, non-runnable
             self.assertTrue(r.ok)
             self.assertIsNotNone(r.intent)
 
@@ -167,6 +180,106 @@ class DispatchAndAutomationTests(unittest.TestCase):
             fired = brain.emit("ping")
             self.assertEqual(len(fired), 1)
             self.assertIn("pong", brain.outbox)
+
+
+class BridgeTests(unittest.TestCase):
+    def test_bridge_enqueue_and_complete(self):
+        with TemporaryDirectory() as tmp:
+            brain = make_brain(tmp)
+            r = brain.dispatch("foreman", "photo", {"job": "24Calhoun"})
+            self.assertTrue(r.ok)
+            self.assertIsNotNone(r.intent)
+            req = r.data["request"]
+            self.assertEqual(req["status"], "pending")
+
+            pending = brain.bridge_queue(status="pending")
+            self.assertEqual(len(pending), 1)
+
+            ok = brain.bridge_complete(req["id"], status="done", result="sent")
+            self.assertTrue(ok)
+            self.assertEqual(brain.bridge_queue(status="pending"), [])
+            done = brain.bridge_queue(status="done")
+            self.assertEqual(done[0]["result"], "sent")
+
+    def test_bridge_rejects_unknown_command(self):
+        with TemporaryDirectory() as tmp:
+            brain = make_brain(tmp)
+            r = brain.dispatch("foreman", "explode")
+            self.assertFalse(r.ok)
+
+    def test_bridge_complete_unknown_id(self):
+        with TemporaryDirectory() as tmp:
+            brain = make_brain(tmp)
+            self.assertFalse(brain.bridge_complete("nope"))
+
+
+class BrainNotesTests(unittest.TestCase):
+    def _setup_brain_dir(self, tmp: str) -> str:
+        import os
+
+        bdir = Path(tmp) / "brain"
+        (bdir / "health").mkdir(parents=True)
+        (bdir / "MASTER.md").write_text("# Master\nWyatt & Gray.\n", encoding="utf-8")
+        (bdir / "health" / "goals.md").write_text("# Health\nplaceholder\n", encoding="utf-8")
+        os.environ["SKYNET_BRAIN_DIR"] = str(bdir)
+        return str(bdir)
+
+    def tearDown(self):
+        import os
+
+        os.environ.pop("SKYNET_BRAIN_DIR", None)
+
+    def test_list_read_search_append(self):
+        with TemporaryDirectory() as tmp:
+            self._setup_brain_dir(tmp)
+            brain = make_brain(tmp)
+
+            lst = brain.dispatch("brain_notes", "list")
+            self.assertTrue(lst.ok)
+            self.assertEqual(len(lst.data["files"]), 2)
+
+            read = brain.dispatch("brain_notes", "read", {"path": "MASTER.md"})
+            self.assertIn("Wyatt & Gray", read.summary)
+
+            hit = brain.dispatch("brain_notes", "search", {"query": "wyatt"})
+            self.assertIn("MASTER.md", hit.data["matches"])
+
+            app = brain.dispatch(
+                "brain_notes", "append",
+                {"path": "health/goals.md", "text": "target 185"},
+            )
+            self.assertTrue(app.ok)
+            again = brain.dispatch("brain_notes", "read", {"path": "health/goals.md"})
+            self.assertIn("target 185", again.summary)
+
+    def test_path_traversal_blocked(self):
+        with TemporaryDirectory() as tmp:
+            self._setup_brain_dir(tmp)
+            brain = make_brain(tmp)
+            r = brain.dispatch("brain_notes", "read", {"path": "../../etc/passwd"})
+            self.assertFalse(r.ok)
+
+    def test_sync_writes_inventory_to_memory(self):
+        with TemporaryDirectory() as tmp:
+            self._setup_brain_dir(tmp)
+            brain = make_brain(tmp)
+            brain.dispatch("brain_notes", "sync")
+            self.assertEqual(len(brain.memory.get("brain", "files")), 2)
+
+
+class WebDashboardTests(unittest.TestCase):
+    def test_dashboard_data_shape(self):
+        from skynet.web import dashboard_data
+
+        with TemporaryDirectory() as tmp:
+            brain = make_brain(tmp)
+            brain.dispatch("health", "log", {"type": "weight", "value": 190})
+            brain.dispatch("foreman", "photo", {"job": "x"})
+            data = dashboard_data(brain)
+            self.assertIn("status", data)
+            self.assertTrue(any(a["id"] == "health" for a in data["apps"]))
+            self.assertIn("weight", data["health"]["metrics"])
+            self.assertEqual(len(data["bridge_pending"]), 1)
 
 
 if __name__ == "__main__":

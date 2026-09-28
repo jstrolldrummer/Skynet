@@ -20,24 +20,25 @@
       "id": "foreman",
       "name": "Foreman",
       "summary": "Job/field management — site photos, notes, and job tracking.",
-      "status": "external",
-      "location": "",
+      "status": "bridge",
+      "location": "skynet.apps.bridge:ForemanApp",
       "tags": ["contracting", "apps"],
       "functions": [
-        {"name": "photo", "summary": "Capture/route a field photo", "usage": "runs via the Foreman Photo shortcut on iPhone"},
-        {"name": "note", "summary": "Add a job note", "usage": "lives in Drive/Apps/Foreman"}
+        {"name": "photo", "summary": "Queue a field-photo capture", "usage": "skynet run foreman photo job=24Calhoun"},
+        {"name": "note", "summary": "Queue a job note", "usage": "skynet run foreman note text=\"framing done\""},
+        {"name": "job_status", "summary": "Queue a job-status update", "usage": "skynet run foreman job_status job=3Bote"}
       ]
     },
     {
       "id": "subtext",
       "name": "Subtext",
       "summary": "Automated iMessage follow-ups to subs and clients.",
-      "status": "external",
-      "location": "",
+      "status": "bridge",
+      "location": "skynet.apps.bridge:SubtextApp",
       "tags": ["contracting", "apps"],
       "functions": [
-        {"name": "followup", "summary": "Queue an automated follow-up text", "usage": "runs from ~/Subtext via LaunchAgents"},
-        {"name": "status", "summary": "Check the follow-up queue", "usage": "backed by subtext.xlsx"}
+        {"name": "followup", "summary": "Queue an automated follow-up text", "usage": "skynet run subtext followup to=\"Mike\" msg=\"still need the quote\""},
+        {"name": "status", "summary": "Queue a queue-status check", "usage": "skynet run subtext status"}
       ]
     },
     {
@@ -66,12 +67,15 @@
       "id": "brain_notes",
       "name": "Brain Notes",
       "summary": "Joe's Drive 'Brain' — passive memory (MASTER.md and sub-files).",
-      "status": "external",
-      "location": "",
+      "status": "live",
+      "location": "skynet.apps.brain_notes:BrainNotesApp",
       "tags": ["personal", "contracting", "finance"],
       "functions": [
-        {"name": "read", "summary": "Read a Brain markdown file", "usage": "Drive/Apps/Brain/MASTER.md"},
-        {"name": "update", "summary": "Update a Brain markdown file", "usage": "date every update"}
+        {"name": "list", "summary": "List Brain markdown files", "usage": "skynet run brain_notes list"},
+        {"name": "read", "summary": "Read a Brain file", "usage": "skynet run brain_notes read path=MASTER.md"},
+        {"name": "search", "summary": "Search Brain files", "usage": "skynet run brain_notes search query=Calhoun"},
+        {"name": "append", "summary": "Append a dated note", "usage": "skynet run brain_notes append path=health/goals.md text=\"...\""},
+        {"name": "sync", "summary": "Record a file inventory into memory", "usage": "skynet run brain_notes sync"}
       ]
     }
   ]

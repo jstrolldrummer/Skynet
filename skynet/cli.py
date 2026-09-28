@@ -72,6 +72,19 @@ def build_parser() -> argparse.ArgumentParser:
     emit.add_argument("event")
     emit.add_argument("params", nargs="*", help="key=value pairs")
 
+    serve = sub.add_parser("serve", help="run the web dashboard")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8787)
+
+    br = sub.add_parser("bridge", help="inspect/complete the bridge queue")
+    brsub = br.add_subparsers(dest="bcmd")
+    brl = brsub.add_parser("list", help="list queued requests")
+    brl.add_argument("--status", choices=["pending", "done", "failed"])
+    brc = brsub.add_parser("complete", help="mark a request done")
+    brc.add_argument("request_id")
+    brc.add_argument("--status", default="done", choices=["done", "failed"])
+    brc.add_argument("--result", default="")
+
     # health app gets first-class subcommands for a nicer experience
     h = sub.add_parser("health", help="health metrics tracker")
     hsub = h.add_subparsers(dest="hcmd")
@@ -107,9 +120,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "status":
         s = brain.status()
         print(f"Skynet — {s['apps_total']} apps registered")
-        print(f"  live:  {', '.join(s['apps_live']) or '(none)'}")
-        print(f"  other: {', '.join(s['apps_other']) or '(none)'}")
+        print(f"  live:   {', '.join(s['apps_live']) or '(none)'}")
+        print(f"  bridge: {', '.join(s['apps_bridge']) or '(none)'}")
+        print(f"  other:  {', '.join(s['apps_other']) or '(none)'}")
         print(f"  automations enabled: {s['automations']}")
+        print(f"  bridge queue pending: {s['bridge_pending']}")
         print(f"  memory namespaces: {', '.join(s['memory_namespaces']) or '(none)'}")
         return 0
 
@@ -153,6 +168,35 @@ def main(argv: list[str] | None = None) -> int:
             print(f"🔔 {msg}")
         print(f"{len(fired)} rule(s) fired.")
         return 0
+
+    if args.cmd == "serve":
+        from .web import serve as serve_dashboard
+
+        serve_dashboard(brain, host=args.host, port=args.port)
+        return 0
+
+    if args.cmd == "bridge":
+        bcmd = getattr(args, "bcmd", None)
+        if bcmd == "list":
+            rows = brain.bridge_queue(status=args.status)
+            if not rows:
+                print("Bridge queue is empty.")
+                return 0
+            for r in rows:
+                print(
+                    f"  [{r['status']:<7}] {r['id']}  {r['app']} · {r['command']}  "
+                    f"{r.get('params', {})}"
+                )
+            print(f"{len(rows)} request(s).")
+            return 0
+        if bcmd == "complete":
+            ok = brain.bridge_complete(
+                args.request_id, status=args.status, result=args.result or None
+            )
+            print("Marked done." if ok else f"No request {args.request_id!r}.")
+            return 0 if ok else 1
+        print("Usage: skynet bridge {list|complete} ...")
+        return 1
 
     if args.cmd == "health":
         if not getattr(args, "hcmd", None):

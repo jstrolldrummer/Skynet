@@ -40,14 +40,23 @@ class App:
     id: str
     name: str
     summary: str = ""
-    status: str = "planned"          # live | planned | external
-    location: str = ""               # "module.path:ClassName" for live apps
+    status: str = "planned"          # live | bridge | external | planned
+    location: str = ""               # "module.path:ClassName" for runnable apps
     tags: tuple[str, ...] = ()
     functions: tuple[Function, ...] = ()
 
     @property
     def is_live(self) -> bool:
         return self.status == "live" and bool(self.location)
+
+    @property
+    def is_bridge(self) -> bool:
+        return self.status == "bridge" and bool(self.location)
+
+    @property
+    def is_runnable(self) -> bool:
+        """Has an in-process adapter the brain can load and call."""
+        return self.status in ("live", "bridge") and bool(self.location)
 
     def function(self, name: str) -> Function | None:
         for fn in self.functions:
@@ -98,6 +107,9 @@ class Registry:
 
     def live(self) -> list[App]:
         return [a for a in self.all() if a.is_live]
+
+    def runnable(self) -> list[App]:
+        return [a for a in self.all() if a.is_runnable]
 
     def __len__(self) -> int:
         return len(self._apps)

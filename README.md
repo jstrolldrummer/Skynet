@@ -32,29 +32,58 @@ python3 -m skynet health trend weight --days 30
 python3 -m skynet health goal weight 185
 
 # Route any command to any app
-python3 -m skynet run foreman photo
+python3 -m skynet run foreman photo job=24Calhoun
 
 # Run automation checks (e.g. "nudge me if I haven't logged weight")
 python3 -m skynet check
+
+# Open the live web dashboard (apps, health, bridge queue)
+python3 -m skynet serve            # then open http://127.0.0.1:8787
 ```
 
 Tip: add `alias skynet="python3 -m skynet"` to your shell so you can just type
 `skynet health summary`.
+
+## Controlling your Mac apps (the bridge)
+
+Foreman and Subtext run on your Mac, so Skynet **queues** commands for them and a
+small runner drains the queue and does the real work:
+
+```bash
+# queue work from anywhere (Cowork, cron, the CLI)
+python3 -m skynet run subtext followup to=Mike msg="need the quote"
+python3 -m skynet bridge list                 # see what's queued
+
+# on the Mac: drain the queue (wire the handlers to your real tooling)
+python3 runners/bridge_poller.py --watch
+```
+
+## Connecting your Drive "Brain"
+
+The `brain_notes` app reads/searches/updates your Drive-synced Brain markdown.
+Point it at the folder once:
+
+```bash
+export SKYNET_BRAIN_DIR="$HOME/Library/CloudStorage/GoogleDrive-joe@wyattgrayhomes.com/My Drive/Apps/Brain"
+python3 -m skynet run brain_notes list
+python3 -m skynet run brain_notes read path=MASTER.md
+python3 -m skynet run brain_notes append path=health/goals.md text="target weight 185"
+```
 
 ## The apps Skynet knows about
 
 | App | Status | What it is |
 | --- | --- | --- |
 | **Health** | live | Tracks weight, sleep, workouts, BP, steps |
-| Foreman | external | Job/field management (site photos, notes) |
-| Subtext | external | Automated iMessage follow-ups |
+| **Brain Notes** | live | Reads/updates the Drive "Brain" markdown |
+| **Foreman** | bridge | Job/field management (site photos, notes) |
+| **Subtext** | bridge | Automated iMessage follow-ups |
 | Selections | external | Client finish/product selections |
 | Punch List | external | End-of-job punch items |
-| Brain Notes | external | The Drive "Brain" markdown memory |
 
-*live* = runs inside Skynet. *external* = runs on the Mac/Cowork; Skynet
-coordinates it via shared memory and returns an "intent" rather than pretending
-to run it. See the architecture doc for how to promote an external app to live.
+*live* = runs inside Skynet. *bridge* = runs on the Mac; Skynet queues commands
+and a runner drains them. *external* = Skynet knows about it and returns an
+"intent". See the architecture doc for how to promote an app between these.
 
 ## Tests
 
@@ -66,16 +95,21 @@ python3 -m unittest discover -s tests
 
 ```
 skynet/            the brain (engine + apps)
-  brain.py         orchestrator: dispatch / emit / check
+  brain.py         orchestrator: dispatch / emit / check / bridge queue
   memory.py        shared source of truth
   registry.py      loads the app catalogue
   automations.py   the rules engine
+  config.py        machine-specific paths (e.g. the Brain folder)
+  web.py           the live web dashboard (stdlib http.server)
   cli.py           the `skynet ...` command line
   apps/
     base.py        BaseApp / AppResult
-    health.py      the Health tracker (first live app)
+    health.py      the Health tracker (live)
+    brain_notes.py the Drive "Brain" bridge (live)
+    bridge.py      Foreman / Subtext bridge apps (queue commands)
 registry/apps.json     the app catalogue (edit to add apps)
 automations/rules.json the automation rules
+runners/bridge_poller.py  sample Mac-side queue runner
 data/memory/           live shared data (gitignored — personal)
 docs/ARCHITECTURE.md   how it all fits together
 connectors/dropbox/    (legacy) Dropbox connector — superseded by Google Drive
