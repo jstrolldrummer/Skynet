@@ -1,0 +1,365 @@
+<title>Skynet</title>
+<meta name="description" content="Wyatt & Gray control panel — your apps and a live health tracker in one place.">
+<style>
+  /* Layout: fixed header; single scroll column; health tracker up top (the live app),
+     app roster below. Control-panel identity — industrial type, signal-color status. */
+  :root{
+    --bg:#f3f4f6; --surface:#ffffff; --surface-2:#eef0f3; --line:#d9dde3;
+    --fg:#191c22; --muted:#5b636f; --faint:#889;
+    --accent:#0f766e; --accent-ink:#ffffff;
+    --live:#15803d; --bridge:#b45309; --external:#6b7280;
+    --shadow:0 1px 2px rgba(20,25,35,.06),0 8px 24px rgba(20,25,35,.05);
+    --font-sans:'IBM Plex Sans',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,"SF Mono",Menlo,monospace;
+    --r:12px;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --bg:#0c0e12; --surface:#141821; --surface-2:#1b202a; --line:#262c38;
+    --fg:#e7eaef; --muted:#8b94a3; --faint:#66707e;
+    --accent:#2dd4bf; --accent-ink:#062a26;
+    --live:#3fb950; --bridge:#d29922; --external:#6e7681;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+    color-scheme:dark;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#0c0e12; --surface:#141821; --surface-2:#1b202a; --line:#262c38;
+    --fg:#e7eaef; --muted:#8b94a3; --faint:#66707e;
+    --accent:#2dd4bf; --accent-ink:#062a26;
+    --live:#3fb950; --bridge:#d29922; --external:#6e7681;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+    color-scheme:dark;
+  }
+
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--fg);font-family:var(--font-sans);
+       font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{margin:0;text-wrap:balance}
+  button{font-family:inherit}
+  .mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+
+  /* header */
+  header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;
+    background:color-mix(in srgb,var(--bg) 88%,transparent);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .head-in{max-width:960px;margin:0 auto;display:flex;align-items:center;gap:14px;
+    padding:14px 20px}
+  .brand{display:flex;align-items:baseline;gap:10px;min-width:0}
+  .logo{font-weight:700;letter-spacing:.22em;font-size:19px}
+  .logo b{color:var(--accent)}
+  .tag{color:var(--muted);font-size:12.5px;letter-spacing:.02em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .spacer{flex:1}
+  .theme-btn{background:var(--surface-2);color:var(--muted);border:1px solid var(--line);
+    border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:15px;flex:none}
+  .theme-btn:hover{color:var(--fg)}
+
+  main{max-width:960px;margin:0 auto;padding:20px;padding-block:22px;
+    display:flex;flex-direction:column;gap:22px}
+
+  /* stat row */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+    padding:14px 16px}
+  .stat b{display:block;font-size:26px;font-weight:600;letter-spacing:-.01em}
+  .stat span{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.09em}
+  @media(max-width:560px){.stats{grid-template-columns:repeat(2,1fr)}}
+
+  section{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+    box-shadow:var(--shadow);overflow:hidden}
+  .sec-head{display:flex;align-items:center;gap:10px;padding:16px 18px 0}
+  .sec-head h2{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+  .sec-body{padding:16px 18px}
+
+  /* health log form */
+  .logbar{display:grid;grid-template-columns:1.3fr .9fr 1.6fr auto;gap:10px;align-items:end}
+  @media(max-width:640px){.logbar{grid-template-columns:1fr 1fr}
+    .logbar .full{grid-column:1/-1}}
+  .field{display:flex;flex-direction:column;gap:5px;min-width:0}
+  .field label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+  select,input[type=text],input[type=number]{width:100%;background:var(--surface-2);
+    color:var(--fg);border:1px solid var(--line);border-radius:9px;padding:9px 11px;
+    font-family:inherit;font-size:14px}
+  input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .log-btn{background:var(--accent);color:var(--accent-ink);border:none;border-radius:9px;
+    padding:10px 18px;font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap}
+  .log-btn:active{transform:translateY(1px)}
+
+  /* metric cards */
+  .metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;
+    margin-top:16px}
+  .mcard{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:13px 14px}
+  .mcard .k{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+  .mcard .v{font-size:24px;font-weight:600;letter-spacing:-.01em;margin-top:3px}
+  .mcard .v u{font-size:13px;font-weight:500;color:var(--muted);text-decoration:none;margin-left:2px}
+  .mcard .meta{font-size:11.5px;color:var(--faint);margin-top:6px;display:flex;gap:8px;flex-wrap:wrap}
+  .delta{font-weight:600}.delta.up{color:var(--bridge)}.delta.down{color:var(--live)}
+  .goal-chip{color:var(--accent)}
+
+  .empty{color:var(--muted);font-style:italic;padding:14px 2px}
+
+  /* history */
+  details.hist{margin-top:14px;border-top:1px solid var(--line)}
+  details.hist summary{cursor:pointer;padding:12px 2px 0;color:var(--muted);font-size:13px;
+    list-style:none}
+  details.hist summary::-webkit-details-marker{display:none}
+  .hist-list{margin-top:8px;max-height:240px;overflow:auto}
+  .hrow{display:grid;grid-template-columns:auto 1fr auto;gap:10px;padding:7px 2px;
+    border-top:1px solid var(--line);font-size:13px;align-items:baseline}
+  .hrow:first-child{border-top:none}
+  .hrow .ht{color:var(--muted);min-width:78px}
+  .hrow .hn{color:var(--faint);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* apps */
+  .app{display:flex;gap:12px;align-items:flex-start;padding:13px 0;border-top:1px solid var(--line)}
+  .app:first-child{border-top:none}
+  .dot{width:9px;height:9px;border-radius:50%;margin-top:6px;flex:none}
+  .dot.live{background:var(--live)}.dot.bridge{background:var(--bridge)}
+  .dot.external,.dot.planned{background:var(--external)}
+  .app .an{font-weight:600}
+  .badge{font-size:10px;text-transform:uppercase;letter-spacing:.08em;padding:2px 7px;
+    border-radius:20px;border:1px solid var(--line);color:var(--muted);margin-left:8px;
+    vertical-align:middle}
+  .app .ad{color:var(--muted);font-size:13.5px;margin-top:2px}
+  .app .runs{color:var(--faint);font-size:12px;margin-top:3px}
+
+  .note{color:var(--faint);font-size:12.5px;padding:0 20px 4px;max-width:960px;margin:0 auto}
+  footer{max-width:960px;margin:0 auto;padding:8px 20px 28px;color:var(--faint);font-size:12px}
+  .save-state{font-size:11px;color:var(--faint);margin-left:auto}
+</style>
+
+<header>
+  <div class="head-in">
+    <div class="brand">
+      <span class="logo">SKY<b>NET</b></span>
+      <span class="tag">Wyatt &amp; Gray control panel</span>
+    </div>
+    <div class="spacer"></div>
+    <button class="theme-btn" id="theme" title="Toggle light/dark" aria-label="Toggle theme">◐</button>
+  </div>
+</header>
+
+<main>
+  <div class="stats" id="stats"></div>
+
+  <section>
+    <div class="sec-head"><h2>Health tracker</h2><span class="save-state" id="saveState"></span></div>
+    <div class="sec-body">
+      <form class="logbar" id="logForm">
+        <div class="field">
+          <label for="mtype">Metric</label>
+          <select id="mtype"></select>
+        </div>
+        <div class="field">
+          <label for="mval">Value</label>
+          <input type="number" id="mval" step="any" inputmode="decimal" placeholder="e.g. 190" required>
+        </div>
+        <div class="field full">
+          <label for="mnote">Note (optional)</label>
+          <input type="text" id="mnote" placeholder="morning, after run…" maxlength="120">
+        </div>
+        <button class="log-btn" type="submit">Log</button>
+      </form>
+      <div class="metrics" id="metrics"></div>
+      <details class="hist" id="histWrap">
+        <summary id="histSummary">Recent history</summary>
+        <div class="hist-list" id="history"></div>
+      </details>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Apps</h2></div>
+    <div class="sec-body" id="apps"></div>
+  </section>
+</main>
+<div class="note" id="storeNote"></div>
+<footer>Skynet · your data saves automatically and syncs across your devices.</footer>
+
+<script>
+/* ---- app roster (matches the Skynet registry) ---------------------------- */
+const APPS = [
+  {name:"Health", status:"live", desc:"Weight, sleep, workouts, BP, steps — tracked right here.", runs:"Runs in this page."},
+  {name:"Brain Notes", status:"live", desc:"Your Drive “Brain” (MASTER.md and sub-files).", runs:"Read/updated by Claude in a Cowork session."},
+  {name:"Foreman", status:"bridge", desc:"Job/field management — site photos, notes, job tracking.", runs:"Runs on your Mac; Skynet queues the work."},
+  {name:"Subtext", status:"bridge", desc:"Automated iMessage follow-ups to subs and clients.", runs:"Runs on your Mac; Skynet queues the work."},
+  {name:"Selections", status:"external", desc:"Client finish/product selections for active jobs.", runs:"Lives in Drive."},
+  {name:"Punch List", status:"external", desc:"End-of-job punch items and sign-off.", runs:"Lives in Drive."},
+];
+
+/* ---- metric definitions -------------------------------------------------- */
+const METRICS = [
+  {key:"weight", label:"Weight", unit:"lbs", better:"down"},
+  {key:"sleep", label:"Sleep", unit:"hrs", better:"up"},
+  {key:"steps", label:"Steps", unit:"", better:"up"},
+  {key:"workout", label:"Workout", unit:"min", better:"up"},
+  {key:"resting_hr", label:"Resting HR", unit:"bpm", better:"down"},
+  {key:"systolic", label:"BP systolic", unit:"mmHg", better:"down"},
+  {key:"diastolic", label:"BP diastolic", unit:"mmHg", better:"down"},
+  {key:"water", label:"Water", unit:"oz", better:"up"},
+  {key:"weight_goal_note", label:"Other…", unit:"", better:"up"},
+];
+const META = Object.fromEntries(METRICS.map(m=>[m.key,m]));
+
+/* ---- state --------------------------------------------------------------- */
+let db = null;
+let metrics = [];      // [{id,type,value,unit,note,at}]
+let goals = {};        // {weight:185,...}
+const LS_KEY = "skynet.health.v1";
+
+/* ---- storage: db when available, localStorage fallback ------------------- */
+function lsLoad(){
+  try{const r=JSON.parse(localStorage.getItem(LS_KEY)||"{}");
+    metrics=r.metrics||[]; goals=r.goals||{};}catch(e){}
+}
+function lsSave(){
+  try{localStorage.setItem(LS_KEY,JSON.stringify({metrics,goals}));}catch(e){}
+}
+
+async function initStore(){
+  try{ db = await claude.use("db"); }catch(e){ db=null; }
+  if(db){
+    setSave("synced");
+    document.getElementById("storeNote").textContent =
+      "Saved to this app's private database — your entries follow you to any device where you open this link.";
+    // metrics (subscribe once)
+    db.collection("metrics").orderBy("at","desc").limit(500).onSnapshot(
+      snap=>{ metrics = snap.docs.map(d=>({id:d.id,...d.data()})); renderAll(); },
+      err=>{ setSave("offline"); }
+    );
+    db.doc("settings/goals").onSnapshot(
+      snap=>{ goals = (snap.exists && snap.data().values) || {}; renderAll(); },
+      ()=>{}
+    );
+  }else{
+    lsLoad();
+    document.getElementById("storeNote").textContent =
+      "Saved in this browser only. Open the link while signed in to Claude to sync across devices.";
+    setSave("this device");
+    renderAll();
+  }
+}
+function setSave(t){ document.getElementById("saveState").textContent = t; }
+
+/* ---- actions ------------------------------------------------------------- */
+async function logMetric(type, value, note){
+  const m = META[type] || {unit:""};
+  const rec = { type, value, unit:m.unit||"", note:note||"", at:new Date().toISOString() };
+  if(db){
+    try{ await db.collection("metrics").add(rec); }
+    catch(e){ setSave("save failed — retry"); return; }
+  }else{
+    rec.id = Math.random().toString(36).slice(2,12);
+    metrics.unshift(rec); lsSave(); renderAll();
+  }
+}
+async function setGoal(type, value){
+  goals = {...goals, [type]:value};
+  if(db){ try{ await db.doc("settings/goals").set({values:goals}); }catch(e){} }
+  else { lsSave(); renderAll(); }
+}
+
+/* ---- rendering ----------------------------------------------------------- */
+function fmtDate(iso){
+  const d=new Date(iso); if(isNaN(d)) return "";
+  return d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+}
+function latestByType(){
+  const out={};
+  for(const r of [...metrics].sort((a,b)=>(a.at<b.at?1:-1))){
+    if(!out[r.type]) out[r.type]={latest:r, prev:null};
+    else if(!out[r.type].prev) out[r.type].prev=r;
+  }
+  return out;
+}
+function renderStats(){
+  const live=APPS.filter(a=>a.status==="live").length;
+  const bridge=APPS.filter(a=>a.status==="bridge").length;
+  const tracked=new Set(metrics.map(m=>m.type)).size;
+  const rows=[["apps",APPS.length],["live",live],["bridge",bridge],["metrics tracked",tracked]];
+  document.getElementById("stats").innerHTML = rows.map(([k,v])=>
+    `<div class="stat"><b class="mono">${v}</b><span>${k}</span></div>`).join("");
+}
+function renderMetrics(){
+  const by=latestByType();
+  const keys=Object.keys(by);
+  const el=document.getElementById("metrics");
+  if(!keys.length){ el.innerHTML =
+    `<p class="empty">No metrics logged yet — pick one above, type a value, and hit Log.</p>`;
+    return; }
+  el.innerHTML = keys.map(k=>{
+    const {latest,prev}=by[k]; const m=META[k]||{label:k,unit:latest.unit||"",better:"up"};
+    let delta="";
+    if(prev){
+      const d=+latest.value - +prev.value;
+      if(d!==0){ const dir=d>0?"up":"down";
+        const good=(m.better==="up"&&d>0)||(m.better==="down"&&d<0);
+        delta=`<span class="delta ${good?"down":"up"}">${d>0?"▲":"▼"} ${Math.abs(d).toFixed(Math.abs(d)%1?1:0)}</span>`;
+      }
+    }
+    const goal = goals[k]!=null ? `<span class="goal-chip">goal ${goals[k]}</span>` : "";
+    return `<div class="mcard"><div class="k">${m.label}</div>
+      <div class="v mono">${latest.value}<u>${latest.unit||m.unit||""}</u></div>
+      <div class="meta">${delta}${goal}<span>${fmtDate(latest.at)}</span></div></div>`;
+  }).join("");
+}
+function renderHistory(){
+  const el=document.getElementById("history");
+  const rows=[...metrics].sort((a,b)=>(a.at<b.at?1:-1)).slice(0,50);
+  document.getElementById("histSummary").textContent =
+    `Recent history${metrics.length?` (${metrics.length})`:""}`;
+  if(!rows.length){ el.innerHTML=`<p class="empty">Nothing yet.</p>`; return; }
+  el.innerHTML = rows.map(r=>{
+    const m=META[r.type]||{label:r.type};
+    return `<div class="hrow"><span class="ht mono">${fmtDate(r.at)}</span>
+      <span><b>${m.label||r.type}</b> ${r.value}${r.unit||""}
+      ${r.note?`<span class="hn">— ${escapeHtml(r.note)}</span>`:""}</span>
+      <span></span></div>`;
+  }).join("");
+}
+function renderApps(){
+  document.getElementById("apps").innerHTML = APPS.map(a=>
+    `<div class="app"><div class="dot ${a.status}"></div><div>
+      <div class="an">${a.name}<span class="badge">${a.status}</span></div>
+      <div class="ad">${a.desc}</div><div class="runs">${a.runs}</div>
+    </div></div>`).join("");
+}
+function renderAll(){ renderStats(); renderMetrics(); renderHistory(); renderApps(); }
+
+function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>(
+  {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+/* ---- wire up ------------------------------------------------------------- */
+function fillMetricSelect(){
+  document.getElementById("mtype").innerHTML = METRICS.map(m=>
+    `<option value="${m.key}">${m.label}${m.unit?` (${m.unit})`:""}</option>`).join("");
+}
+document.getElementById("logForm").addEventListener("submit", e=>{
+  e.preventDefault();
+  const type=document.getElementById("mtype").value;
+  const val=parseFloat(document.getElementById("mval").value);
+  const note=document.getElementById("mnote").value.trim();
+  if(isNaN(val)) return;
+  logMetric(type, val, note);
+  document.getElementById("mval").value="";
+  document.getElementById("mnote").value="";
+  document.getElementById("mval").focus();
+});
+
+/* theme toggle */
+(function themeSetup(){
+  const btn=document.getElementById("theme");
+  try{const saved=localStorage.getItem("skynet.theme");
+    if(saved) document.documentElement.setAttribute("data-theme",saved);}catch(e){}
+  btn.addEventListener("click",()=>{
+    const cur=document.documentElement.getAttribute("data-theme");
+    const next = cur==="dark"?"light":(cur==="light"?"dark":
+      (matchMedia("(prefers-color-scheme: dark)").matches?"light":"dark"));
+    document.documentElement.setAttribute("data-theme",next);
+    try{localStorage.setItem("skynet.theme",next);}catch(e){}
+  });
+})();
+
+fillMetricSelect();
+renderAll();      // paint roster + empty state immediately
+initStore();      // then load/sync data
+</script>
